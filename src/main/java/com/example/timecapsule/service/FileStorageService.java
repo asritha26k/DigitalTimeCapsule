@@ -17,6 +17,10 @@ public class FileStorageService {
 
     @Value("${file.upload-dir}")
     private String uploadDir;
+    public void setUploadDir(String uploadDir) { //this is for testing
+        this.uploadDir = uploadDir;
+    }
+
 
     public FileMetadata storeFile(MultipartFile file) throws IOException {
         // Generate a unique filename to avoid conflicts

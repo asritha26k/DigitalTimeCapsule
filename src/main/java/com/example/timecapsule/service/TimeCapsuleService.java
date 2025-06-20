@@ -25,6 +25,10 @@ public class TimeCapsuleService {
     public TimeCapsuleService(TimeCapsuleRepository repository) {
         this.repository = repository;
     }
+    public void setUploadDir(String uploadDir) { // this is for the usage of test method
+        this.uploadDir = uploadDir;
+    }
+
 
     public TimeCapsule createCapsule(String ownerUserId, String recipientEmail, Instant unlockDate, List<MultipartFile> files) throws IOException {
         List<FileMetadata> metadataList = new ArrayList<>();

@@ -10,6 +10,10 @@ import org.springframework.stereotype.Service;
 public class EmailService {
 
     private final JavaMailSender mailSender;
+    public void setFromEmail(String fromEmail) {
+        this.fromEmail = fromEmail;
+    }
+
 
     @Value("${spring.mail.username}")
     private String fromEmail;
