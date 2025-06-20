@@ -30,7 +30,7 @@ public class TimeCapsuleService {
     }
 
 
-    public TimeCapsule createCapsule(String ownerUserId, String recipientEmail, Instant unlockDate, List<MultipartFile> files) throws IOException {
+    public TimeCapsule createCapsule(String ownerUserId, String recipientEmail, Instant unlockDate, List<MultipartFile> files, String topic) throws IOException{
         List<FileMetadata> metadataList = new ArrayList<>();
 
         String folderName = "capsule_" + System.currentTimeMillis();
@@ -45,20 +45,22 @@ public class TimeCapsuleService {
             Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
             FileMetadata metadata = new FileMetadata();
             metadata.setFileName(fileName);
-            metadata.setContentType(file.getContentType());  // capital C here
+            metadata.setContentType(file.getContentType());
             metadata.setSize(file.getSize());
             metadata.setStoragePath(filePath.toString());
-
 
             metadataList.add(metadata);
         }
 
         TimeCapsule capsule = new TimeCapsule();
-        capsule.setOwnerUsername(ownerUserId);  // or better rename variable to ownerUsername
+        capsule.setOwnerUsername(ownerUserId);
         capsule.setRecipientEmail(recipientEmail);
         capsule.setUnlockDate(unlockDate);
         capsule.setFileMetadataList(metadataList);
+        capsule.setTopic(topic); // 👈 NEW
+        capsule.setStatus(TimeCapsule.CapsuleStatus.LOCKED);
 
         return repository.save(capsule);
     }
+
 }

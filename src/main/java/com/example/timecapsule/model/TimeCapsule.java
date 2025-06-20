@@ -27,11 +27,20 @@ public class TimeCapsule {
     private String publicAccessToken; // New field 1
 
     private String title; // New field 2
+    private String topic; // e.g. "friendship", "gratitude", etc.
 
     public enum CapsuleStatus {
         LOCKED,
         UNLOCKED
     }
+    public String getTopic() {
+        return topic;
+    }
+    public void setTopic(String topic) {
+        this.topic = topic;
+    }
+
+
 
     public TimeCapsule() {
         this.createdAt = Instant.now();

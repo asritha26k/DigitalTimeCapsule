@@ -3,6 +3,7 @@ package com.example.timecapsule.scheduler;
 import com.example.timecapsule.model.TimeCapsule;
 import com.example.timecapsule.repository.TimeCapsuleRepository;
 import com.example.timecapsule.service.EmailService;
+import com.example.timecapsule.service.QuoteService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -10,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID; // Import UUID for generating tokens
+import java.util.UUID;
 
 @Component
 public class CapsuleUnlockScheduler {
@@ -19,13 +20,17 @@ public class CapsuleUnlockScheduler {
 
     private final TimeCapsuleRepository capsuleRepository;
     private final EmailService emailService;
+    private final QuoteService quoteService;
 
-    public CapsuleUnlockScheduler(TimeCapsuleRepository capsuleRepository, EmailService emailService) {
+    public CapsuleUnlockScheduler(TimeCapsuleRepository capsuleRepository,
+                                  EmailService emailService,
+                                  QuoteService quoteService) {
         this.capsuleRepository = capsuleRepository;
         this.emailService = emailService;
+        this.quoteService = quoteService;
     }
 
-    @Scheduled(fixedRate = 3600000) // Running every 10 seconds for testing
+    @Scheduled(fixedRate = 10000) // Every 10 seconds
     public void unlockAndNotify() {
         logger.info("Running scheduled task: Checking for capsules to unlock...");
 
@@ -41,38 +46,47 @@ public class CapsuleUnlockScheduler {
 
         for (TimeCapsule capsule : readyCapsules) {
             try {
-                // Generate a unique public access token
+                // Generate public access token and update status
                 String publicAccessToken = UUID.randomUUID().toString();
-                capsule.setPublicAccessToken(publicAccessToken); // Set the new token
-
-                // Update capsule status to UNLOCKED and save
+                capsule.setPublicAccessToken(publicAccessToken);
                 capsule.setStatus(TimeCapsule.CapsuleStatus.UNLOCKED);
                 capsuleRepository.save(capsule);
-                logger.info("Capsule ID {} status updated to UNLOCKED. Public Access Token generated.", capsule.getId());
 
-                // Construct the link for the email. This links to a hypothetical FRONTEND route
-                // where the recipient can view the capsule contents.
-                // You will need a frontend application (e.g., React, Angular, Vue) running on a specific port
-                // that consumes the /api/capsules/public-view/{accessToken} endpoint.
-                // Replace 'http://localhost:3000' with the actual URL of your frontend application.
+                logger.info("Capsule ID {} unlocked. Token: {}", capsule.getId(), publicAccessToken);
+
+                // Build frontend link
                 String publicViewerLink = String.format("http://localhost:3000/capsules/view/%s", publicAccessToken);
 
+                // Fetch quote based on topic
+                String quote;
+                String topic = capsule.getTopic() != null ? capsule.getTopic() : "life";
+                try {
+                    quote = quoteService.getQuote(topic);
+                    logger.info("Quote for topic '{}': {}", topic, quote);
+                } catch (Exception e) {
+                    quote = "“Cherish yesterday, dream tomorrow, live today.”";
+                    logger.warn("Failed to fetch quote from Gemini: {}", e.getMessage());
+                }
 
+                // Compose the email
                 String subject = "🎁 Your Digital Time Capsule Is Ready!";
                 String body = String.format(
                         "Hi %s,\n\nYour digital time capsule from %s is now unlocked and ready to access! " +
-                                "Click the link below to view your memories:\n\n%s\n\nEnjoy!",
+                                "Click the link below to view your memories:\n\n%s\n\n" +
+                                "✨ Quote on '%s' ✨\n%s\n\nEnjoy!",
                         capsule.getRecipientEmail(),
                         capsule.getOwnerUsername(),
-                        publicViewerLink
+                        publicViewerLink,
+                        topic,
+                        quote
                 );
 
+                // Send the email
                 emailService.sendSimpleMessage(capsule.getRecipientEmail(), subject, body);
-                logger.info("Unlock notification email sent to {} for capsule ID {}.", capsule.getRecipientEmail(), capsule.getId());
+                logger.info("Email sent to {}", capsule.getRecipientEmail());
 
             } catch (Exception e) {
-                logger.error("Error processing capsule ID {} for unlock: {}", capsule.getId(), e.getMessage(), e);
-                // Optionally, add logic to retry or flag this capsule for manual review
+                logger.error("Failed to process capsule {}: {}", capsule.getId(), e.getMessage(), e);
             }
         }
     }

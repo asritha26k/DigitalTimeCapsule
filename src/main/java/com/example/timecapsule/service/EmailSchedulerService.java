@@ -14,16 +14,20 @@ public class EmailSchedulerService {
 
     private final TimeCapsuleRepository capsuleRepository;
     private final EmailService emailService;
-    private final JwtUtils jwtUtils; // To create secure tokens
+    private final JwtUtils jwtUtils;
+    private final QuoteService quoteService;
 
-    public EmailSchedulerService(TimeCapsuleRepository capsuleRepository, EmailService emailService, JwtUtils jwtUtils) {
+    public EmailSchedulerService(TimeCapsuleRepository capsuleRepository,
+                                 EmailService emailService,
+                                 JwtUtils jwtUtils,
+                                 QuoteService quoteService) {
         this.capsuleRepository = capsuleRepository;
         this.emailService = emailService;
         this.jwtUtils = jwtUtils;
+        this.quoteService = quoteService;
     }
 
-    // Run every minute (for testing)
-    @Scheduled(fixedRate = 60_000)
+    @Scheduled(fixedRate = 60_000) // Every minute
     public void checkAndSendCapsules() {
         Instant now = Instant.now();
         List<TimeCapsule> dueCapsules = capsuleRepository
@@ -31,16 +35,16 @@ public class EmailSchedulerService {
 
         for (TimeCapsule capsule : dueCapsules) {
             try {
-                // Generate a secure token for this capsule ID (token expires after some time)
                 String token = jwtUtils.generateJwtToken(capsule.getId());
-
-                // Build secure link with token as query param
                 String secureLink = "https://your-domain.com/capsules/unlock?token=" + token;
 
-                // Send email with the secure link
-                emailService.sendCapsuleUnlockEmail(capsule, secureLink);
+                // Use capsule topic, fallback to "memories"
+                String topic = capsule.getTopic() != null ? capsule.getTopic() : "memories";
+                String quote = quoteService.getQuote(topic);
 
-                // Update status to unlocked
+                // Send email
+                emailService.sendCapsuleUnlockEmail(capsule, secureLink, quote);
+
                 capsule.setStatus(TimeCapsule.CapsuleStatus.UNLOCKED);
                 capsuleRepository.save(capsule);
 

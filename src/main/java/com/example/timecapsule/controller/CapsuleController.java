@@ -27,11 +27,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.File;
 import java.io.IOException;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneOffset;
+import java.time.*;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
@@ -97,37 +93,38 @@ public class CapsuleController {
             @RequestPart("recipientEmail") String recipientEmail,
             @RequestPart("unlockDate") String unlockDateStr,
             @RequestPart(value = "title", required = false) String title,
+            @RequestPart(value = "topic", required = false) String topic,
             @RequestPart("files") List<MultipartFile> files,
             HttpServletRequest request) {
 
-        String username = jwtUtils.getUsernameFromRequest(request); // Corrected
+        String username = jwtUtils.getUsernameFromRequest(request);
         Instant unlockDate;
+        ZoneId istZone = ZoneId.of("Asia/Kolkata");
 
         try {
             if (unlockDateStr.contains("T")) {
+                // Full date-time like 2025-06-20T19:45:00
                 LocalDateTime localDateTime = LocalDateTime.parse(unlockDateStr);
-                unlockDate = localDateTime.toInstant(ZoneOffset.UTC);
+                unlockDate = localDateTime.atZone(istZone).toInstant();
             } else {
+                // Just date like 2025-06-20
                 LocalDate localDate = LocalDate.parse(unlockDateStr);
                 LocalDateTime endOfDay = LocalDateTime.of(localDate, LocalTime.MAX);
-                unlockDate = endOfDay.toInstant(ZoneOffset.UTC);
+                unlockDate = endOfDay.atZone(istZone).toInstant();
             }
         } catch (DateTimeParseException e) {
             return ResponseEntity.badRequest().body("Invalid unlockDate format. Please use 'YYYY-MM-DD' or 'YYYY-MM-DDTHH:mm:ss'.");
         }
 
         List<FileMetadata> metadataList = new ArrayList<>();
-        if (files != null) {
-            for (MultipartFile file : files) {
-                if (!file.isEmpty()) {
-                    try {
-                        FileMetadata metadata = fileStorageService.storeFile(file);
-                        metadataList.add(metadata);
-                    } catch (IOException e) {
-                        System.err.println("Error saving file " + file.getOriginalFilename() + ": " + e.getMessage());
-                        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                                .body("Error saving file: " + file.getOriginalFilename());
-                    }
+        for (MultipartFile file : files) {
+            if (!file.isEmpty()) {
+                try {
+                    FileMetadata metadata = fileStorageService.storeFile(file);
+                    metadataList.add(metadata);
+                } catch (IOException e) {
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body("Error saving file: " + file.getOriginalFilename());
                 }
             }
         }
@@ -141,10 +138,16 @@ public class CapsuleController {
         if (title != null && !title.isEmpty()) {
             capsule.setTitle(title);
         }
+        if (topic != null && !topic.isEmpty()) {
+            capsule.setTopic(topic);
+        }
+
         capsuleRepository.save(capsule);
 
         return ResponseEntity.status(HttpStatus.CREATED).body("Time capsule created successfully.");
     }
+
+
 
     @PutMapping("/{capsuleId}")
     public ResponseEntity<?> updateCapsule(@PathVariable String capsuleId,

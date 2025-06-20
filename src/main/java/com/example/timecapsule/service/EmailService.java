@@ -22,20 +22,23 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
-    public void sendCapsuleUnlockEmail(TimeCapsule capsule, String secureLink) {
+    public void sendCapsuleUnlockEmail(TimeCapsule capsule, String secureLink, String quote) {
         String recipient = capsule.getRecipientEmail();
         String subject = "🎁 A Digital Time Capsule Just Arrived!";
+
         String body = """
-                Hello!
+        Hello!
 
-                You’ve received a digital time capsule from the past 🎉.
-                Click below to view the contents:
+        You’ve received a digital time capsule from the past 🎉.
+        Click below to view the contents:
 
-                %s
+        %s
 
-                Best,
-                Time Capsule Team
-                """.formatted(secureLink);
+        %s
+
+        Best,
+        Time Capsule Team
+        """.formatted(secureLink, (quote != null && !quote.isBlank()) ? "\n✨ Quote:\n" + quote : "");
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(recipient);
@@ -45,6 +48,7 @@ public class EmailService {
 
         mailSender.send(message);
     }
+
 
     public void sendSimpleMessage(String recipientEmail, String subject, String body) {
         SimpleMailMessage message = new SimpleMailMessage();
